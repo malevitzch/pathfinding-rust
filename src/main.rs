@@ -1,7 +1,18 @@
 use rand::Rng;
 use std::collections::VecDeque;
 use inline_colorization::*;
+use std::thread;
 use array2d::Array2D;
+
+fn percent_to_rgb(percent: f32) -> image::Rgb<u8> {
+    let k: u8 = ((255.0 * percent) / 100.0).round() as u8; 
+    image::Rgb([255 - k, k, 0u8])
+    /*
+    100 - 255
+    percent - x
+    100.0 * x = 255.0 * percent
+    */
+}
 fn weighted_rand<T: std::marker::Copy>(elements: &Vec<(T, u32)>) -> T {
     let mut cur_sum: u32 = 0;
     let mut total_sum: u32 = 0;
@@ -23,17 +34,16 @@ fn utuple(val: (i32, i32)) -> (usize, usize) {
 fn in_bounds(coords: (i32, i32), bounds: i32) -> bool {
     coords.0 >= 0 && coords.1 >= 0 && coords.0 < bounds && coords.1 < bounds
 }
-fn run(size: usize, display: bool) -> bool {
-    let N: usize = size;
-    let types: Vec<(i32, u32)> = [(0, 10), (1, 5)].to_vec();
-    let mut dist: Array2D<i32> = Array2D::filled_with(-1, N, N);
-    let mut map: Array2D<i32> = Array2D::filled_with(0, N, N);  
-    for i in 0..N {
-        for j in 0..N {
+fn run(size: usize, display: bool, types: &Vec<(i32, u32)>) -> bool {
+    let n: usize = size;
+    let mut dist: Array2D<i32> = Array2D::filled_with(-1, n, n);
+    let mut map: Array2D<i32> = Array2D::filled_with(0, n, n);  
+    for i in 0..n {
+        for j in 0..n {
             map[(i, j)] = weighted_rand(&types);
         }
     }
-    map[(N - 1, N - 1)] = 0;
+    map[(n - 1, n - 1)] = 0;
     map[(0, 0)] = 0;
     dist[(0, 0)] = 0;
     let mut deq: VecDeque<(i32, i32, i32)> = VecDeque::new();
@@ -42,13 +52,13 @@ fn run(size: usize, display: bool) -> bool {
         let cur = deq.front().unwrap().clone();
         deq.pop_front();
         for i in [(cur.0 - 1, cur.1), (cur.0 + 1, cur.1), (cur.0, cur.1 - 1), (cur.0, cur.1 + 1)] {
-            if in_bounds(i, N as i32) && dist[utuple(i)] == -1 && map[utuple(i)] != 1 {
+            if in_bounds(i, n as i32) && dist[utuple(i)] == -1 && map[utuple(i)] != 1 {
                 dist[utuple(i)] =  dist[utuple((cur.0, cur.1))] + 1;
                 deq.push_back((i.0, i.1, dist[utuple((cur.0, cur.1))] + 1));
             }
         }
     }
-    let mut cur: (i32, i32) = ((N - 1) as i32, (N - 1) as i32);
+    let mut cur: (i32, i32) = ((n - 1) as i32, (n - 1) as i32);
     let mut better_spot: bool = true;
     if dist[utuple(cur)] != -1
     {
@@ -56,7 +66,7 @@ fn run(size: usize, display: bool) -> bool {
             map[utuple(cur)] = 2; 
             better_spot = false;
             for nxt in [(cur.0 - 1, cur.1), (cur.0 + 1, cur.1), (cur.0, cur.1 - 1), (cur.0, cur.1 + 1)] {
-                if in_bounds(nxt, N as i32) && dist[utuple(nxt)] != -1 && dist[utuple(nxt)] < dist[utuple(cur)] {
+                if in_bounds(nxt, n as i32) && dist[utuple(nxt)] != -1 && dist[utuple(nxt)] < dist[utuple(cur)] {
                     cur = nxt;
                     better_spot = true;
                     break;
@@ -65,10 +75,10 @@ fn run(size: usize, display: bool) -> bool {
         }
     }
     if !display {
-        return dist[(N-1, N-1)] != -1;
+        return dist[(n-1, n-1)] != -1;
     }
-    for i in 0..N {
-        for j in 0..N {
+    for i in 0..n {
+        for j in 0..n {
             print!("{} ",
                 match (map[(i, j)], dist[(i, j)]) {
                     (1, _) | (0, -1) => {
@@ -84,19 +94,57 @@ fn run(size: usize, display: bool) -> bool {
                         "O".to_string()
                         }
                     (_, _) => "ERR".to_string()
-                    }
-                ); 
+                }
+            ); 
         }
         print!("\n");
     }
-    return dist[(N-1, N-1)] != -1;
+    return dist[(n-1, n-1)] != -1;
 }
-
+#[allow(dead_code)]
+fn coords_to_index(x: usize, y: usize, width: usize) -> usize
+{
+    x + width * y
+}
+fn index_to_coords(index: usize, width: usize) -> (usize, usize)
+{
+    ((index % width), index / width)
+}
+fn get_color(size: usize, display: bool, types: Vec<(i32, u32)>, iterations: u32) -> image::Rgb<u8> {
+    let mut successful : i32 = 0;
+    for _ in 0..iterations
+    {
+        successful += run(size, display, &types) as i32;
+    }
+    let percent: f32 = 100.0 * successful as f32 / iterations as f32;
+    return percent_to_rgb(percent)
+}
 fn main() {
-    let mut valid : i32 = 0;
-    let total : i32 = 10000;
-    for _ in 0..total {
-        valid += run(20, false) as i32;
+    let now = std::time::Instant::now();
+    let mut types: Vec<(i32, u32)> = [(0, 0), (1, 0)].to_vec();
+    let precision: u32 = 10000;
+    let mut img: image::RgbImage = image::RgbImage::new(20*50 as u32, 10*50 as u32);
+    let mut threads : Vec<thread::JoinHandle<image::Rgb<u8>>> = Vec::new();
+    for weight in 0..10usize {
+        for map_size in 1..=20usize {
+            types[0].1 = 10 - weight as u32;
+            types[1].1 = weight as u32;
+            let type_clone = types.clone();
+            threads.push(thread::spawn(move || get_color(map_size.clone(), false, type_clone, precision.clone()))); 
         }
-    println!("{:.2}", (100.0 * valid as f32 / total as f32));
+    }
+    let mut i: usize = 0;
+    for cur in threads.into_iter() {
+        let color: image::Rgb<u8> = (cur.join().unwrap()).clone();
+        let coords = index_to_coords(i, 20);
+        for x in 50*coords.0..50*(coords.0+1) {
+            for y in (50*coords.1)..50*(coords.1+1) {
+                img.put_pixel(x as u32, y as u32, color.clone());
+            }
+        }
+        i+=1;        
+    }
+    let elapsed = now.elapsed();
+    img.save("Output_Graph.png").expect("Failed to save image");
+    print!("{color_white}{}s", elapsed.as_secs());
 }

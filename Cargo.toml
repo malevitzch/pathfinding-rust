@@ -6,5 +6,6 @@ edition = "2021"
 
 [dependencies]
 array2d = "0.3.2"
+image = "0.24.8"
 inline_colorization = "0.1.6"
 rand = "0.8"
