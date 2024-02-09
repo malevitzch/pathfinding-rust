@@ -160,3 +160,4 @@ fn main() {
     img.save("Output_Graph.png").expect("Failed to save image");
     print!("{color_white}{}s", elapsed.as_secs());
 }
+
