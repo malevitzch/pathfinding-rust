@@ -4,16 +4,18 @@ use inline_colorization::*;
 use std::thread;
 use array2d::Array2D;
 
+//function that takes a float value from 0 to 100
+//returns an Rgb color from red to green based on the value
+//TODO: change to option, handle values outside the [0.0, 100.0] range
 fn percent_to_rgb(percent: f32) -> image::Rgb<u8> {
-    let k: u8 = ((255.0 * percent) / 100.0).round() as u8; 
+    let k: u8 = ((255.0 * percent) / 100.0).round() as u8; //TODO: check if k belongs to [0, 255] 
     image::Rgb([255 - k, k, 0u8])
-    /*
-    100 - 255
-    percent - x
-    100.0 * x = 255.0 * percent
-    */
 }
-fn weighted_rand<T: std::marker::Copy>(elements: &Vec<(T, u32)>) -> T {
+//function that takes an immutable reference to a vector of tuples of element and weight
+//randomly returns a copy of one of the elements, with chances based on the weights
+//in case all elements have weight 0, returns the default element of type T
+//TODO: perhaps change the syntax to return and option and 
+fn weighted_rand<T: std::marker::Copy + Default>(elements: &Vec<(T, u32)>) -> T {
     let mut cur_sum: u32 = 0;
     let mut total_sum: u32 = 0;
     for i in 0..elements.len() {
@@ -26,14 +28,24 @@ fn weighted_rand<T: std::marker::Copy>(elements: &Vec<(T, u32)>) -> T {
             return elements[i].0.clone();
         }
     }
-    elements[elements.len() - 1].0.clone()
+    Default::default()
 }
+//auxilary function that converts an integer tuple to usize tuple
 fn utuple(val: (i32, i32)) -> (usize, usize) {
     (val.0 as usize, val.1 as usize)
 }
+//function that checks whether the coords are inside a square of set size (indexed from 0)
 fn in_bounds(coords: (i32, i32), bounds: i32) -> bool {
     coords.0 >= 0 && coords.1 >= 0 && coords.0 < bounds && coords.1 < bounds
 }
+//function that generates a random map and returns whether there exists a path from top left corner
+//to bottom right corner
+//map size and the vector of types and weights is configurable, albeit the types are not to be
+//changed as 0 and 1 are hard-coded as passable and non-passable so calling the run function with a
+//types vec that has other values will result in undefined behavior
+//if display is set to true, the map is printed to console with red X as unreachable tiles,
+//reachable tiles as blue O, and tiles that belong to the optimal path as green O
+//TODO: allow for m x n maps rather than just m x m
 fn run(size: usize, display: bool, types: &Vec<(i32, u32)>) -> bool {
     let n: usize = size;
     let mut dist: Array2D<i32> = Array2D::filled_with(-1, n, n);
