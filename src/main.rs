@@ -52,7 +52,7 @@ fn run(size: usize, display: bool, types: &Vec<(i32, u32)>) -> bool {
     let mut map: Array2D<i32> = Array2D::filled_with(0, n, n);
     for i in 0..n {
         for j in 0..n {
-            map[(i, j)] = weighted_rand(&types);
+            map[(i, j)] = weighted_rand(types);
         }
     }
     map[(n - 1, n - 1)] = 0;
@@ -61,7 +61,7 @@ fn run(size: usize, display: bool, types: &Vec<(i32, u32)>) -> bool {
     let mut deq: VecDeque<(i32, i32, i32)> = VecDeque::new();
     deq.push_back((0, 0, 0));
     while !deq.is_empty() {
-        let cur = deq.front().unwrap().clone();
+        let cur = *deq.front().unwrap();
         deq.pop_front();
         for i in [
             (cur.0 - 1, cur.1),
@@ -122,9 +122,9 @@ fn run(size: usize, display: bool, types: &Vec<(i32, u32)>) -> bool {
                 }
             );
         }
-        print!("\n");
+        println!();
     }
-    return dist[(n - 1, n - 1)] != -1;
+    dist[(n - 1, n - 1)] != -1
 }
 #[allow(dead_code)]
 fn coords_to_index(x: usize, y: usize, width: usize) -> usize {
@@ -144,13 +144,13 @@ fn get_color(
         successful += run(size, display, &types) as i32;
     }
     let percent: f32 = 100.0 * successful as f32 / iterations as f32;
-    return percent_to_rgb(percent);
+    percent_to_rgb(percent)
 }
 fn main() {
     let now = std::time::Instant::now();
     let mut types: Vec<(i32, u32)> = [(0, 0), (1, 0)].to_vec();
     let precision: u32 = 1000;
-    let mut img: image::RgbImage = image::RgbImage::new(20 * 50 as u32, 10 * 50 as u32);
+    let mut img: image::RgbImage = image::RgbImage::new(20 * 50u32, 10 * 50u32);
     let mut threads: Vec<thread::JoinHandle<image::Rgb<u8>>> = Vec::new();
     for weight in 0..10usize {
         for map_size in 1..=20usize {
@@ -158,7 +158,7 @@ fn main() {
             types[1].1 = weight as u32;
             let type_clone = types.clone();
             threads.push(thread::spawn(move || {
-                get_color(map_size.clone(), false, type_clone, precision.clone())
+                get_color(map_size, false, type_clone, precision)
             }));
         }
     }
