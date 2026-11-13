@@ -149,7 +149,7 @@ fn get_color(
 fn main() {
     let now = std::time::Instant::now();
     let mut types: Vec<(i32, u32)> = [(0, 0), (1, 0)].to_vec();
-    let precision: u32 = 1000;
+    let precision: u32 = 10000;
     let mut img: image::RgbImage = image::RgbImage::new(20 * 50u32, 10 * 50u32);
     let mut threads: Vec<thread::JoinHandle<image::Rgb<u8>>> = Vec::new();
     for weight in 0..10usize {
@@ -175,5 +175,5 @@ fn main() {
     }
     let elapsed = now.elapsed();
     img.save("Output_Graph.png").expect("Failed to save image");
-    print!("{color_white}{}s", elapsed.as_secs());
+    println!("{color_white}{}s", elapsed.as_secs());
 }
